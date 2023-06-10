@@ -1,2 +1,7 @@
 .vscode/
 build-*/
+*.pgm
+*.jpg
+*.pgm
+cube-data
+build
