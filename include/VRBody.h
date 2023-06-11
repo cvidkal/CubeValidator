@@ -27,21 +27,26 @@ public:
     }
 
     void ValidateExtrinsic() {
+        FILE* fp = fopen("result.txt", "w");
+        printf("Intrinsic validation:\n");
+        fprintf(fp, "Intrinsic validation:\n");
         for (auto& camera_pair : cameras_) {
             auto& camera = camera_pair.second;
             camera.UndistortImage();
             camera.DetectTags();
-            camera.SolvePnP();
+            float error = camera.SolvePnP();
+            printf("\t %s reprojection error: %f\n", camera.GetName().c_str(), error);
+            fprintf(fp, "\t %s reprojection error: %f\n", camera.GetName().c_str(), error);
             camera.DetectTagsFromReprojection();
         }
-
-        FILE* fp = fopen("result.txt", "w");
+        printf("Extrinsic validation:\n");
+        fprintf(fp, "Extrinsic validation:\n");
         for (auto& left : cameras_) {
             for (auto& right : cameras_) {
                 if (left.first < right.first) {
                     float error = left.second.ValidateExtrinsic(right.second);
-                    printf("%s - %s reprojection error: %f\n", left.second.GetName().c_str(), right.second.GetName().c_str(), error);
-                    fprintf(fp, "%s - %s reprojection error: %f\n", left.second.GetName().c_str(), right.second.GetName().c_str(), error);
+                    printf("\t %s - %s reprojection error: %f\n", left.second.GetName().c_str(), right.second.GetName().c_str(), error);
+                    fprintf(fp, "\t %s - %s reprojection error: %f\n", left.second.GetName().c_str(), right.second.GetName().c_str(), error);
                 }
             }
         }

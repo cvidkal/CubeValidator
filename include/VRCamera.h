@@ -95,7 +95,7 @@ public:
         cv::imwrite(name_ + "_distorted_tag_detection.png", draw_image_distorted);
     }
 
-    void SolvePnP() {
+    float SolvePnP() {
         std::vector<cv::Point3f> obj_pts;
         std::vector<cv::Point2f> img_pts;
 
@@ -150,8 +150,9 @@ public:
             cv::circle(draw_image_undistored, img_pts[i], 1, cv::Scalar(0, 0, 255), -1);
         }
         error /= reprojected_points.size();
-        printf("%s Reprojection error: %f\n", name_.c_str(), error);
+        // printf("%s Reprojection error: %f\n", name_.c_str(), error);
         cv::imwrite(name_ + "_solve_pnp.png", draw_image_undistored);
+        return error;
     }
 
     void DetectTagsFromReprojection() {
