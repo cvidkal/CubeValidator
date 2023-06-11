@@ -25,7 +25,10 @@ class Template(ConanFile):
     }
 
     requires = (
-
+        "apriltag/1.0.0@navi/thirdparty",
+        "opencv/3.4.12@navi/thirdparty",
+        "eigen/3.3.7@navi/thirdparty",
+        "boost/1.77.0@navi/thirdparty",
     )
 
     def set_version(self):
