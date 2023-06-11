@@ -34,7 +34,7 @@ public:
     }
 
     void ValidateExtrinsic() {
-        FILE* fp = fopen("[user]result.txt", "w");
+        FILE* fp = fopen((output_dir_+"[user]result.txt").c_str(), "w");
         printf("Intrinsic validation:\n");
         fprintf(fp, "Intrinsic validation:\n");
 
