@@ -26,10 +26,18 @@ public:
         }
     }
 
+    void SetOutputDir(const std::string& output_dir) {
+        output_dir_ = output_dir + "/";
+        for (auto& camera : cameras_) {
+            camera.second.SetOutputDir(output_dir);
+        }
+    }
+
     void ValidateExtrinsic() {
-        FILE* fp = fopen("result.txt", "w");
+        FILE* fp = fopen("[user]result.txt", "w");
         printf("Intrinsic validation:\n");
         fprintf(fp, "Intrinsic validation:\n");
+
         for (auto& camera_pair : cameras_) {
             auto& camera = camera_pair.second;
             camera.UndistortImage();
@@ -39,8 +47,10 @@ public:
             fprintf(fp, "\t %s reprojection error: %f\n", camera.GetName().c_str(), error);
             camera.DetectTagsFromReprojection();
         }
+
         printf("Extrinsic validation:\n");
         fprintf(fp, "Extrinsic validation:\n");
+
         for (auto& left : cameras_) {
             for (auto& right : cameras_) {
                 if (left.first < right.first) {
@@ -63,4 +73,5 @@ public:
 
 private:
     std::unordered_map<int, VRCamera> cameras_;
+    std::string output_dir_{"./"};
 };

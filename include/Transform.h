@@ -29,6 +29,10 @@ public:
         }
     }
 
+    static Transform Identity() {
+        return Transform(Eigen::Matrix4d::Identity());
+    }
+
     Eigen::Matrix4d GetMatrix() const {
         return T_;
     }
@@ -47,7 +51,7 @@ public:
     }
 
     cv::Mat GetRvecCV() {
-        cv::Mat R = cv::Mat::zeros(3, 3, CV_64F);
+        cv::Mat R    = cv::Mat::zeros(3, 3, CV_64F);
         cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64F);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {

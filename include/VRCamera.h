@@ -35,8 +35,13 @@ public:
         image_ = image;
     }
 
+    void SetOutputDir(const std::string& output_dir) {
+        output_dir_ = output_dir + "/";
+    }
+
     void UndistortImage() {
         cv::fisheye::undistortImage(image_, image_undistorted_, K_cv_, D_cv_, K_cv_, cv::Size(image_.cols * 2, image_.rows * 2));
+        cv::imwrite(output_dir_ + "[debug]" + name_ + "_undistorted.png", image_undistorted_);
     }
 
     void SetAprilTagDetector(AprilTags::TagDetector* tag_detector) {
@@ -61,7 +66,7 @@ public:
                 cv::circle(draw_image_undistored, cv::Point(tags_[i].p[j].first, tags_[i].p[j].second), 1, cv::Scalar(0, 0, 255), -1);
             }
         }
-        cv::imwrite(name_ + "_undistorted_tag_detection.png", draw_image_undistored);
+        cv::imwrite(output_dir_ + "[debug]" + name_ + "_undistorted_tag_detection.png", draw_image_undistored);
 
         cv::Mat draw_image_distorted = image_.clone();
         cv::cvtColor(draw_image_distorted, draw_image_distorted, CV_GRAY2BGR);
@@ -80,7 +85,7 @@ public:
                 cv::circle(draw_image_distorted, points_distorted[j], 1, cv::Scalar(0, 0, 255), -1);
             }
 
-            cv::cornerSubPix(image_, points_distorted, cv::Size(3, 3), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+            // cv::cornerSubPix(image_, points_distorted, cv::Size(3, 3), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
             for (int j = 0; j < 4; j++) {
                 cv::circle(draw_image_distorted, points_distorted[j], 1, cv::Scalar(0, 255, 0), -1);
             }
@@ -92,7 +97,7 @@ public:
             tag.cxy.second = (tag.p[0].second + tag.p[1].second + tag.p[2].second + tag.p[3].second) / 4;
             tags_distorted_.push_back(tag);
         }
-        cv::imwrite(name_ + "_distorted_tag_detection.png", draw_image_distorted);
+        cv::imwrite(output_dir_ + "[debug]" + name_ + "_distorted_tag_detection.png", draw_image_distorted);
     }
 
     float SolvePnP() {
@@ -142,16 +147,22 @@ public:
         double error = 0;
         std::vector<cv::Point2f> reprojected_points;
         cv::projectPoints(obj_pts, rvec, t, K_cv_, cv::Mat(), reprojected_points);
+        float max_r_pixel = sqrt(float(image_.rows * image_.rows + image_.cols * image_.cols)) * 0.8f;
+        int valid_count   = 0;
         for (int i = 0; i < reprojected_points.size(); i++) {
             float dx = reprojected_points[i].x - img_pts[i].x;
             float dy = reprojected_points[i].y - img_pts[i].y;
-            error += sqrt(dx * dx + dy * dy);
+            float r  = sqrt(reprojected_points[i].x * reprojected_points[i].x + reprojected_points[i].y * reprojected_points[i].y);
+            if (r < max_r_pixel) {
+                valid_count++;
+                error += sqrt(dx * dx + dy * dy);
+            }
             cv::circle(draw_image_undistored, reprojected_points[i], 1, cv::Scalar(255, 0, 0), -1);
             cv::circle(draw_image_undistored, img_pts[i], 1, cv::Scalar(0, 0, 255), -1);
         }
-        error /= reprojected_points.size();
+        error /= valid_count;
         // printf("%s Reprojection error: %f\n", name_.c_str(), error);
-        cv::imwrite(name_ + "_solve_pnp.png", draw_image_undistored);
+        cv::imwrite(output_dir_ + "[debug]" + name_ + "_solve_pnp.png", draw_image_undistored);
         return error;
     }
 
@@ -196,11 +207,11 @@ public:
             cv::circle(draw_image_distored_from_reprojection, img_pts[i], 1, cv::Scalar(0, 0, 255), -1);
         }
 
-        cv::cornerSubPix(image_, img_pts, cv::Size(3, 3), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+        // cv::cornerSubPix(image_, img_pts, cv::Size(3, 3), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
         for (int i = 0; i < img_pts.size(); i++) {
             cv::circle(draw_image_distored_from_reprojection, img_pts[i], 1, cv::Scalar(0, 255, 0), -1);
         }
-        cv::imwrite(name_ + "_distorted_tag_detection_from_reprojection.png", draw_image_distored_from_reprojection);
+        cv::imwrite(output_dir_ + "[debug]" + name_ + "_distorted_tag_detection_from_reprojection.png", draw_image_distored_from_reprojection);
 
         int image_rows                                         = image_.rows;
         int image_cols                                         = image_.cols;
@@ -218,6 +229,11 @@ public:
                     break;
                 }
             }
+            Eigen::Vector3d p_c = T_cw_.TransformPoint(Eigen::Vector3d(obj_pts[i].x, obj_pts[i].y, obj_pts[i].z));
+            if (p_c.z() < 0.01) {
+                in_view = false;
+            }
+
             if (!in_view)
                 continue;
             tag.cxy.first  = (tag.p[0].first + tag.p[1].first + tag.p[2].first + tag.p[3].first) / 4;
@@ -230,9 +246,10 @@ public:
             for (int j = 0; j < 4; ++j) {
                 cv::circle(draw_image_distored_from_reprojection_selected, cv::Point(tag.p[j].first, tag.p[j].second), 1, cv::Scalar(0, 0, 255), -1);
             }
+            cv::putText(draw_image_distored_from_reprojection_selected, std::to_string(tag.id), cv::Point(tag.cxy.first, tag.cxy.second), cv::FONT_HERSHEY_SIMPLEX, 0.25, cv::Scalar(0, 0, 255), 1);
         }
 
-        cv::imwrite(name_ + "_distorted_tag_detection_from_reprojection_selected.png", draw_image_distored_from_reprojection_selected);
+        cv::imwrite(output_dir_ + "[debug]" + name_ + "_distorted_tag_detection_from_reprojection_selected.png", draw_image_distored_from_reprojection_selected);
     }
 
     std::vector<AprilTags::TagDetection> GetTags() {
@@ -328,11 +345,11 @@ public:
 
         cv::Mat merge;
         cv::hconcat(left_image_distored_from_reprojection_selected, right_image_distored_from_reprojection_selected, merge);
-        cv::imwrite(name_ + "- " + another_cam.name_ + "extensive_result.png", merge);
+        cv::imwrite(output_dir_ + "[debug]" + name_ + "- " + another_cam.name_ + "extensive_result.png", merge);
 
         cv::Mat merge_for_user;
         cv::hconcat(left_image_distored_from_reprojection_selected, right_image_result_for_user, merge_for_user);
-        cv::imwrite(name_ + "- " + another_cam.name_ + "extensive_result_for_user.png", merge_for_user);
+        cv::imwrite(output_dir_ + "[user]" + name_ + "- " + another_cam.name_ + "extensive_result.png", merge_for_user);
         return error;
     }
 
@@ -375,4 +392,6 @@ private:
     Transform T_cw_;
 
     CubeBoard cube_board_;
+
+    std::string output_dir_{"./"};
 };

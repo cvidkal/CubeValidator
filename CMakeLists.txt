@@ -24,10 +24,20 @@ tests/test.cpp
 
 target_include_directories(test-template PUBLIC include)
 
-
-
 target_link_libraries(test-template
 ${CONAN_LIBS}
 pthread
+stdc++fs
 )
 
+add_executable(test-multi-board
+tests/test-multi-board.cpp
+)
+
+
+target_include_directories(test-multi-board PUBLIC include)
+target_link_libraries(test-multi-board
+${CONAN_LIBS}
+pthread
+stdc++fs
+)
